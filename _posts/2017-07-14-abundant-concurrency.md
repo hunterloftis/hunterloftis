@@ -39,8 +39,9 @@ which will be familiar to anyone who's used
 As I sketched out a 100-line, 2-channel "hello, world" example, I realized my mistake.
 The pbr renderer could, internally, start as many goroutines as it needs to quickly render an image,
 without ever exposing that to the user.
-In Go, I can have as much concurrency as I want,
-and I'm free to expose a simple, sequential API to the user.
+In Go, I can have as much concurrency as I want
+and I'm free to expose a simple, sequential API to the user -
+even if each concurrent routine loops through two billion pixels.
 
 Go developers approach concurrency with an *abundance mindset.*
 
