@@ -1,6 +1,6 @@
 ---
 layout: post
-title: Concurrency, an abundance mindset, and Go
+title: Abundant concurrency in Go
 ---
 
 Today, I merged
