@@ -76,6 +76,7 @@ but that's [exactly what pbr does now](https://github.com/hunterloftis/pbr/blob/
 ```go
 // Sample samples every pixel in the Camera's frame at least once.
 // (package's responsibility)
+// (yeah I know this is a little messy, I'll clean it up later, the point is the user doesn't deal with the mess)
 func (s *Sampler) Sample() {
 	length := index(len(s.samples))
 	workers := index(runtime.NumCPU())
