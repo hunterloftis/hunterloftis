@@ -31,21 +31,84 @@ if you spin up too many processes, you create contention and waste resources.
 So, when I added concurrency to
 [pbr](https://github.com/hunterloftis/pbr#pbr-a-physically-based-renderer-in-go)'s API,
 I forced the user to spin up a handful of goroutines that they'd monitor over channels.
-It resulted in
+It was made "easier" via this complex
+[Monitor](https://github.com/hunterloftis/pbr/blob/2c876535011379b54d93c58ba72500c8e6c69771/pbr/monitor.go)
+type that created goroutines for you:
+
+```go
+// AddSampler creates a new worker with that sampler.
+// (user's responsibility)
+func (m *Monitor) AddSampler(s *Sampler) {
+	m.active++
+	go func() {
+		for {
+			frame := s.SampleFrame()
+			m.samples.Lock()
+			m.samples.count += frame
+			total := m.samples.count
+			m.samples.Unlock()
+			m.Progress <- total
+			select {
+			case <-m.cancel:
+				m.active--
+				m.Results <- s.Pixels()
+				return
+			default:
+			}
+		}
+	}()
+}
+```
+
+Pushing the concurrent requirements up to the user resulted in
 [this monstrosity](https://github.com/hunterloftis/pbr/blob/2c876535011379b54d93c58ba72500c8e6c69771/cmd/render/render.go#L74-L94)
 which will be familiar to anyone who's used
 [node's cluster API](https://nodejs.org/api/cluster.html#cluster_cluster).
 
 As I sketched out a 100-line, 2-channel "hello, world" example, I realized my mistake.
-The pbr renderer could, internally, start as many goroutines as it needs to quickly render an image,
-without ever exposing that to the user.
+The pbr renderer could start as many goroutines as it needs to quickly render an image
+without ever exposing them to the user.
 In Go, I can have as much concurrency as I want
-and I'm free to expose a simple, sequential API to the user -
-even if each concurrent routine loops through two billion pixels.
+and I'm free to expose a simple, sequential API to the user.
+In JavaScript, it would be unthinkable to `for` loop through two billion pixels at once,
+but that's [exactly what pbr does now](https://github.com/hunterloftis/pbr/blob/master/pbr/sampler.go#L68):
 
-Go developers approach concurrency with an *abundance mindset.*
+```go
+// Sample samples every pixel in the Camera's frame at least once.
+// (package's responsibility)
+func (s *Sampler) Sample() {
+	length := index(len(s.samples))
+	workers := index(runtime.NumCPU())
+	ch := make(chan sampleStat, workers)
 
-So now you can render pbr's
+	for i := index(0); i < workers; i++ {
+		go func(i index, adapt, max int, mean float64) {
+			var stat sampleStat
+			rnd := rand.New(rand.NewSource(time.Now().UnixNano()))
+			for p := i * Stride; p < length; p += Stride * workers {
+				samples := adaptive(s.samples[p+Noise], adapt, max, mean)
+				stat.noise += s.samplePixel(p, rnd, samples)
+				stat.count += samples
+			}
+			ch <- stat
+		}(i, s.Adapt, s.Adapt*3, s.meanNoise+Bias)
+	}
+
+	var sample sampleStat
+	for i := index(0); i < workers; i++ {
+		stat := <-ch
+		sample.count += stat.count
+		sample.noise += stat.noise
+	}
+	s.count += sample.count
+	s.meanNoise = sample.noise / float64(sample.count)
+}
+```
+
+The new method approaches concurrency like a Go developer,
+with an *abundance mindset.*
+
+Now you can render pbr's
 [Hello, world scene](https://github.com/hunterloftis/pbr#hello-world)
 with 15 lines and zero channels.
 Underneath, `sampler.Sample()` creates goroutines for every block of *N* pixels to saturate your CPU.
