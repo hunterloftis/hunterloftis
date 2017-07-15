@@ -69,6 +69,7 @@ As I sketched out a 100-line, 2-channel "hello, world" example, I realized my mi
 The pbr renderer could start as many goroutines as it needs to quickly render an image
 without ever exposing them to the user.
 In Go, I can build internal concurrency while exposing a simple, sequential API.
+
 In JavaScript, it would be unthinkable to spawn several async routines that each `for` loop through two billion pixels at once,
 but that's [exactly what pbr does now](https://github.com/hunterloftis/pbr/blob/master/pbr/sampler.go#L68):
 
