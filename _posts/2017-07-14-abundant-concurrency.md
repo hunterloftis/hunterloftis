@@ -70,7 +70,7 @@ The pbr renderer could start as many goroutines as it needs to quickly render an
 without ever exposing them to the user.
 In Go, I can have as much concurrency as I want
 and I'm free to expose a simple, sequential API to the user.
-In JavaScript, it would be unthinkable to `for` loop through two billion pixels at once,
+In JavaScript, it would be unthinkable to spawn several async routines that each `for` loop through two billion pixels at once,
 but that's [exactly what pbr does now](https://github.com/hunterloftis/pbr/blob/master/pbr/sampler.go#L68):
 
 ```go
